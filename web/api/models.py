@@ -247,3 +247,28 @@ class SystemHealthResponse(BaseModel):
     ffmpeg_available: bool
     jobs_running: int
     jobs_queued: int
+
+
+class VideoResolutionOption(BaseModel):
+    """A detected video resolution with metadata."""
+    height: int
+    label: str
+    width: Optional[int] = None
+    fps: Optional[float] = None
+    filesize_approx: Optional[int] = None
+
+
+class VideoProbeRequest(BaseModel):
+    """Request to probe a video URL for available resolutions."""
+    url: str
+
+
+class VideoProbeResponse(BaseModel):
+    """Response containing probed video resolutions and basic metadata."""
+    url: str
+    title: Optional[str] = None
+    duration: Optional[float] = None
+    thumbnail: Optional[str] = None
+    is_live: bool = False
+    resolutions: list[int] = []
+    options: list[VideoResolutionOption] = []

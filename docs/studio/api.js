@@ -30,8 +30,8 @@ const StudioAPI = (() => {
   function getBackendUrl() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved.replace(/\/+$/, '');
-    if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http') && !window.location.hostname.endsWith('github.io')) {
-      return window.location.origin;
+    if (typeof window !== 'undefined' && window.location && typeof window.location.protocol === 'string' && window.location.protocol.startsWith('http') && (typeof window.location.hostname !== 'string' || !window.location.hostname.endsWith('github.io'))) {
+      return window.location.origin || '';
     }
     return '';
   }
@@ -177,6 +177,13 @@ const StudioAPI = (() => {
     });
   }
 
+  async function probeVideo(url) {
+    return request('/api/jobs/probe', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  }
+
   async function deleteJob(jobId) {
     return request(`/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
   }
@@ -268,6 +275,7 @@ const StudioAPI = (() => {
     fetchJobs,
     fetchJob,
     createJob,
+    probeVideo,
     deleteJob,
     fetchSettings,
     updateSettings,

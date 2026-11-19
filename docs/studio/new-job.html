@@ -115,10 +115,52 @@
                         <div id="mode-url-panel">
                             <div class="mb-4">
                                 <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.url">Video URL</span></label>
-                                <input id="input-url" type="url" placeholder="https://www.youtube.com/watch?v=..."
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 placeholder-slate-400 text-slate-900 dark:text-white">
+                                <div class="flex gap-2">
+                                    <input id="input-url" type="url" placeholder="https://www.youtube.com/watch?v=..."
+                                        oninput="handleUrlInputDebounced()"
+                                        class="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 placeholder-slate-400 text-slate-900 dark:text-white">
+                                    <button id="btn-check-res" type="button" onclick="triggerManualProbe()" class="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5 flex-shrink-0">
+                                        <i data-lucide="scan" class="w-4 h-4 text-brand-500"></i>
+                                        <span data-i18n="new.checkQuality">Check Quality</span>
+                                    </button>
+                                </div>
                                 <p class="text-xs text-slate-400 mt-1.5"><span data-i18n="new.supported">Supports YouTube (including ongoing live streams), TikTok, Instagram, Google Drive</span></p>
                             </div>
+
+                            <!-- Resolution Probe Status & Selection Card -->
+                            <div id="probe-card" class="hidden mb-4 p-4 rounded-xl border border-brand-200 dark:border-brand-900/50 bg-brand-50/40 dark:bg-brand-950/20 transition-all">
+                                <div id="probe-loading" class="flex items-center gap-2.5 text-xs text-brand-700 dark:text-brand-300">
+                                    <span class="spinner w-3.5 h-3.5"></span>
+                                    <span data-i18n="new.detectingRes">Checking available video resolutions...</span>
+                                </div>
+                                <div id="probe-content" class="hidden">
+                                    <div class="flex items-start gap-3 mb-3">
+                                        <img id="probe-thumb" src="" alt="Thumbnail" class="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 flex-shrink-0 shadow-sm">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <h5 id="probe-title" class="font-semibold text-xs text-slate-900 dark:text-white truncate"></h5>
+                                                <span id="probe-live-badge" class="hidden px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 font-bold text-[10px]">🔴 LIVE</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                                <span id="probe-duration"></span>
+                                                <span class="text-slate-300 dark:text-slate-600">•</span>
+                                                <span id="probe-quality-feedback" class="text-brand-600 dark:text-brand-400 font-medium">Original (Max)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                            <span data-i18n="new.selectRes">Choose Video Quality:</span>
+                                        </label>
+                                        <div id="probe-chips" class="flex flex-wrap gap-1.5"></div>
+                                    </div>
+                                </div>
+                                <div id="probe-error" class="hidden text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                    <i data-lucide="alert-circle" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                                    <span id="probe-error-text"></span>
+                                </div>
+                            </div>
+
                             <div class="max-w-[200px]">
                                 <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.platform">Platform</span></label>
                                 <select id="input-source" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
@@ -163,6 +205,19 @@
                                         <option value="1:1" data-i18n="new.square">1:1 (Square)</option>
                                         <option value="3:4">3:4</option>
                                         <option value="4:5">4:5</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                                        <span data-i18n="new.resolution">Download Quality</span>
+                                        <span id="res-badge" class="hidden text-[10px] px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-600 dark:text-brand-400 font-medium">Probed</span>
+                                    </label>
+                                    <select id="input-resolution" onchange="syncResolutionChoice(this.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
+                                        <option value="max" data-i18n="new.resMax">Original / Max Quality</option>
+                                        <option value="1080">1080p (Full HD)</option>
+                                        <option value="720">720p (HD)</option>
+                                        <option value="480">480p (SD)</option>
+                                        <option value="360">360p (Fast)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -332,6 +387,253 @@
             reusePanel.classList.toggle('hidden', mode !== 'reuse');
         }
 
+        let lastProbedUrl = '';
+        let probeDebounceTimer = null;
+        let lastProbeData = null;
+
+        function handleUrlInputDebounced() {
+            clearTimeout(probeDebounceTimer);
+            probeDebounceTimer = setTimeout(() => {
+                const url = document.getElementById('input-url').value.trim();
+                if (url && url !== lastProbedUrl && (url.includes('youtu') || url.startsWith('http'))) {
+                    runProbe(url, true);
+                }
+            }, 600);
+        }
+
+        function triggerManualProbe() {
+            const url = document.getElementById('input-url').value.trim();
+            if (!url) return;
+            runProbe(url, true);
+        }
+
+        async function runProbe(url, askUser = true) {
+            lastProbedUrl = url;
+            const card = document.getElementById('probe-card');
+            const loading = document.getElementById('probe-loading');
+            const content = document.getElementById('probe-content');
+            const error = document.getElementById('probe-error');
+            const errorText = document.getElementById('probe-error-text');
+
+            card.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            content.classList.add('hidden');
+            error.classList.add('hidden');
+
+            try {
+                const data = await StudioAPI.probeVideo(url);
+                lastProbeData = data;
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
+
+                document.getElementById('probe-title').textContent = data.title || url;
+                if (data.thumbnail) {
+                    const thumb = document.getElementById('probe-thumb');
+                    thumb.src = data.thumbnail;
+                    thumb.classList.remove('hidden');
+                }
+                const liveBadge = document.getElementById('probe-live-badge');
+                if (data.is_live) liveBadge.classList.remove('hidden');
+                else liveBadge.classList.add('hidden');
+
+                const durEl = document.getElementById('probe-duration');
+                if (data.duration) {
+                    const mins = Math.floor(data.duration / 60);
+                    const secs = Math.floor(data.duration % 60);
+                    durEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                } else {
+                    durEl.textContent = data.is_live ? 'Live Stream' : '';
+                }
+
+                populateResolutionSelect(data.resolutions);
+                buildResolutionChips(data.resolutions);
+
+                if (askUser && data.resolutions && data.resolutions.length > 0) {
+                    showResolutionModal(data);
+                }
+            } catch (err) {
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+                errorText.textContent = StudioI18n.errorMessage(err) || 'Could not fetch video info.';
+            }
+        }
+
+        function populateResolutionSelect(resolutions = []) {
+            const sel = document.getElementById('input-resolution');
+            const currentVal = sel.value;
+            sel.innerHTML = `<option value="max" data-i18n="new.resMax">${StudioI18n.html('new.resMax')}</option>`;
+            
+            const standard = [2160, 1440, 1080, 720, 480, 360];
+            const allRes = resolutions && resolutions.length ? resolutions : standard;
+
+            allRes.forEach(h => {
+                let label = `${h}p`;
+                if (h >= 2160) label += ' (4K UHD)';
+                else if (h >= 1440) label += ' (2K QHD)';
+                else if (h >= 1080) label += ' (Full HD)';
+                else if (h >= 720) label += ' (HD)';
+                else if (h >= 480) label += ' (SD)';
+                else if (h >= 360) label += ' (Fast)';
+                
+                const opt = document.createElement('option');
+                opt.value = String(h);
+                opt.textContent = label;
+                sel.appendChild(opt);
+            });
+
+            if (currentVal && Array.from(sel.options).some(o => o.value === currentVal)) {
+                sel.value = currentVal;
+            }
+            document.getElementById('res-badge').classList.remove('hidden');
+        }
+
+        function buildResolutionChips(resolutions = []) {
+            const container = document.getElementById('probe-chips');
+            container.innerHTML = '';
+            const selVal = document.getElementById('input-resolution').value || 'max';
+
+            const maxChip = createChip('max', 'Max / Original', selVal === 'max');
+            container.appendChild(maxChip);
+
+            resolutions.forEach(h => {
+                const chip = createChip(String(h), `${h}p`, selVal === String(h));
+                container.appendChild(chip);
+            });
+        }
+
+        function createChip(val, label, active) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                active 
+                    ? 'bg-brand-600 text-white shadow-sm ring-2 ring-brand-500/30' 
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-400'
+            }`;
+            btn.textContent = label;
+            btn.onclick = () => {
+                selectResolution(val);
+            };
+            return btn;
+        }
+
+        function selectResolution(val) {
+            const sel = document.getElementById('input-resolution');
+            sel.value = val;
+            syncResolutionChoice(val);
+        }
+
+        function syncResolutionChoice(val) {
+            const feedback = document.getElementById('probe-quality-feedback');
+            if (feedback) {
+                feedback.textContent = val === 'max' ? 'Original (Max)' : `${val}p`;
+            }
+            if (lastProbeData && lastProbeData.resolutions) {
+                buildResolutionChips(lastProbeData.resolutions);
+            }
+        }
+
+        function showResolutionModal(data) {
+            const existing = document.getElementById('res-modal-backdrop');
+            if (existing) existing.remove();
+
+            const backdrop = document.createElement('div');
+            backdrop.id = 'res-modal-backdrop';
+            backdrop.className = 'connect-modal-backdrop';
+
+            const resolutions = data.resolutions || [];
+            const currentVal = document.getElementById('input-resolution').value || 'max';
+
+            let optionsHtml = `
+                <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-500 bg-white dark:bg-slate-900/60 cursor-pointer transition-colors mb-2">
+                    <div class="flex items-center gap-3">
+                        <input type="radio" name="modal-res-radio" value="max" ${currentVal === 'max' ? 'checked' : ''} class="text-brand-600 focus:ring-brand-500">
+                        <div>
+                            <div class="text-sm font-semibold text-slate-900 dark:text-white">${StudioI18n.html('new.resMax')}</div>
+                            <div class="text-xs text-slate-400">Highest quality stream available</div>
+                        </div>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 font-semibold">Best</span>
+                </label>
+            `;
+
+            resolutions.forEach(h => {
+                let tag = '';
+                if (h >= 2160) tag = '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 font-semibold">4K</span>';
+                else if (h >= 1440) tag = '<span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 font-semibold">2K</span>';
+                else if (h === 1080) tag = '<span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-semibold">Recommended</span>';
+                else if (h === 720) tag = '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 font-semibold">HD / Faster</span>';
+
+                optionsHtml += `
+                    <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-500 bg-white dark:bg-slate-900/60 cursor-pointer transition-colors mb-2">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="modal-res-radio" value="${h}" ${currentVal === String(h) ? 'checked' : ''} class="text-brand-600 focus:ring-brand-500">
+                            <div>
+                                <div class="text-sm font-semibold text-slate-900 dark:text-white">${h}p</div>
+                                <div class="text-xs text-slate-400">${h >= 1080 ? 'Crisp video & subtitles' : (h >= 720 ? 'Standard HD, fast download' : 'Low bandwidth')}</div>
+                            </div>
+                        </div>
+                        ${tag}
+                    </label>
+                `;
+            });
+
+            backdrop.innerHTML = `
+                <div class="connect-modal" style="max-width: 440px;">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-display font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="video" class="w-5 h-5 text-brand-500"></i>
+                            ${StudioI18n.html('new.modalResTitle')}
+                        </h3>
+                        <button onclick="closeResolutionModal()" class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+                        </button>
+                    </div>
+                    ${data.title ? `
+                        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 mb-3 border border-slate-100 dark:border-slate-800">
+                            ${data.thumbnail ? `<img src="${data.thumbnail}" class="w-16 h-10 object-cover rounded-md flex-shrink-0">` : ''}
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-medium text-slate-900 dark:text-white truncate">${data.title}</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">${data.is_live ? '🔴 Live Stream' : (data.duration ? Math.round(data.duration / 60) + ' min' : '')}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        ${StudioI18n.html('new.modalResDesc')}
+                    </p>
+                    <div class="max-h-60 overflow-y-auto pr-1 mb-4">
+                        ${optionsHtml}
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="confirmResolutionFromModal()" class="flex-1 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm transition-colors shadow-md">
+                            ${StudioI18n.html('new.apply')}
+                        </button>
+                        <button type="button" onclick="closeResolutionModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">
+                            Keep Current
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(backdrop);
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) closeResolutionModal();
+            });
+            lucide.createIcons();
+        }
+
+        function closeResolutionModal() {
+            const backdrop = document.getElementById('res-modal-backdrop');
+            if (backdrop) backdrop.remove();
+        }
+
+        function confirmResolutionFromModal() {
+            const checked = document.querySelector('input[name="modal-res-radio"]:checked');
+            if (checked) {
+                selectResolution(checked.value);
+            }
+            closeResolutionModal();
+        }
+
         async function handleSubmit(e) {
             e.preventDefault();
 
@@ -384,6 +686,7 @@
                     clips: parseInt(document.getElementById('input-clips').value) || 7,
                     ratio: document.getElementById('input-ratio').value,
                     font_style: document.getElementById('input-font').value,
+                    source_height: document.getElementById('input-resolution').value || 'max',
                     whisper_model: document.getElementById('input-whisper').value,
                     whisper_device: document.getElementById('input-device').value,
                     ai_provider: document.getElementById('input-ai').value,

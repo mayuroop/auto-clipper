@@ -129,3 +129,30 @@ def test_uploads_do_not_overwrite_and_failed_uploads_are_removed(api, monkeypatc
     monkeypatch.setattr(files, "MAX_UPLOAD_SIZE", 1)
     assert client.post("/api/upload", files={"file": ("large.webm", b"too large", "video/webm")}).status_code == 413
     assert sorted(path.read_bytes() for path in (root / "uploads").iterdir()) == [b"one", b"two"]
+
+
+def test_probe_video_endpoint(api, monkeypatch):
+    client, _, _ = api
+    monkeypatch.setattr(
+        jobs,
+        "_probe_video_sync",
+        lambda url: {
+            "url": url,
+            "title": "Sample Video",
+            "duration": 120.0,
+            "thumbnail": "https://example.test/thumb.jpg",
+            "is_live": False,
+            "resolutions": [1080, 720, 480],
+            "options": [
+                {"height": 1080, "label": "1080p (Full HD)"},
+                {"height": 720, "label": "720p (HD)"},
+                {"height": 480, "label": "480p (SD)"},
+            ],
+        },
+    )
+    res = client.post("/api/jobs/probe", json={"url": "https://www.youtube.com/watch?v=sample"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["title"] == "Sample Video"
+    assert data["resolutions"] == [1080, 720, 480]
+    assert len(data["options"]) == 3

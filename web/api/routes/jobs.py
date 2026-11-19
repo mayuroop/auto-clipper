@@ -18,6 +18,9 @@ from ..models import (
     JobResponse,
     JobStatus,
     ClipDetail,
+    VideoProbeRequest,
+    VideoProbeResponse,
+    VideoResolutionOption,
 )
 from .. import store
 from .. import worker
@@ -142,6 +145,106 @@ async def list_jobs() -> JobListResponse:
         jobs=[_job_to_response(j) for j in jobs],
         total=len(jobs),
     )
+
+
+def _probe_video_sync(url: str) -> dict:
+    """Probe video URL formats and metadata using yt-dlp synchronously."""
+    import yt_dlp
+    from clipping.engine import _apply_cookies
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": False,
+        "socket_timeout": 20,
+    }
+    _apply_cookies(ydl_opts, None)
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        if not info:
+            raise ValueError("No video information could be retrieved.")
+
+        formats = info.get("formats", [])
+        video_formats = [
+            f for f in formats 
+            if f.get("height") and f.get("vcodec") != "none"
+        ]
+
+        height_map: dict[int, dict] = {}
+        for f in video_formats:
+            h = int(f["height"])
+            current = height_map.get(h)
+            curr_size = current.get("filesize") or current.get("filesize_approx") or 0 if current else 0
+            new_size = f.get("filesize") or f.get("filesize_approx") or 0
+            if current is None or new_size > curr_size:
+                height_map[h] = f
+
+        sorted_heights = sorted(height_map.keys(), reverse=True)
+        options: list[VideoResolutionOption] = []
+        for h in sorted_heights:
+            f = height_map[h]
+            label = f"{h}p"
+            if h >= 2160:
+                label += " (4K UHD)"
+            elif h >= 1440:
+                label += " (2K QHD)"
+            elif h >= 1080:
+                label += " (Full HD)"
+            elif h >= 720:
+                label += " (HD)"
+            elif h >= 480:
+                label += " (SD)"
+            elif h >= 360:
+                label += " (Fast)"
+            options.append(
+                VideoResolutionOption(
+                    height=h,
+                    label=label,
+                    width=f.get("width"),
+                    fps=float(f["fps"]) if f.get("fps") is not None else None,
+                    filesize_approx=f.get("filesize") or f.get("filesize_approx"),
+                )
+            )
+
+        return {
+            "url": url,
+            "title": info.get("title"),
+            "duration": info.get("duration"),
+            "thumbnail": info.get("thumbnail"),
+            "is_live": bool(info.get("is_live")),
+            "resolutions": sorted_heights,
+            "options": options,
+        }
+
+
+@router.post("/probe", response_model=VideoProbeResponse)
+async def probe_video_endpoint(req: VideoProbeRequest) -> VideoProbeResponse:
+    """Probe a video URL (YouTube, TikTok, etc.) to discover available resolutions, title, and metadata."""
+    if not req.url or not req.url.strip():
+        raise HTTPException(status_code=400, detail="Video URL is required.")
+    
+    clean_url = req.url.strip()
+    try:
+        data = await asyncio.to_thread(_probe_video_sync, clean_url)
+        return VideoProbeResponse(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to probe video: {str(exc)}")
+
+
+@router.get("/probe", response_model=VideoProbeResponse)
+async def probe_video_get_endpoint(url: str) -> VideoProbeResponse:
+    """Probe video URL via GET query parameter."""
+    if not url or not url.strip():
+        raise HTTPException(status_code=400, detail="Video URL is required.")
+    
+    clean_url = url.strip()
+    try:
+        data = await asyncio.to_thread(_probe_video_sync, clean_url)
+        return VideoProbeResponse(**data)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to probe video: {str(exc)}")
 
 
 @router.get("/{job_id}")
