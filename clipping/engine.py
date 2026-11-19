@@ -125,9 +125,20 @@ def _ydl_progress_hook(d: dict) -> None:
 def _apply_cookies(opts: dict, cookies: str | None) -> None:
     """Apply cookies to yt-dlp options dictionary."""
     if not cookies:
+        for cand in [
+            "youtube_cookies.txt",
+            os.path.join(os.getcwd(), "youtube_cookies.txt"),
+            "/kaggle/working/youtube_cookies.txt",
+            "/kaggle/working/opensource-clipping/youtube_cookies.txt",
+            "/kaggle/working/auto-clipper/youtube_cookies.txt",
+            "/content/youtube_cookies.txt",
+        ]:
+            if os.path.isfile(cand) and os.path.getsize(cand) > 10:
+                opts["cookiefile"] = os.path.abspath(cand)
+                return
         return
     if cookies.endswith(".txt") or os.path.isfile(cookies):
-        opts["cookiefile"] = cookies
+        opts["cookiefile"] = os.path.abspath(cookies)
     else:
         # Browser format: (browser, profile, keyring, container)
         opts["cookiesfrombrowser"] = (cookies, None, None, None)
@@ -252,7 +263,7 @@ def download_video(
             "merge_output_format": "mp4",
             "remote_components": ["ejs:github"],
             "progress_hooks": [_ydl_progress_hook],
-            "extractor_args": {"youtube": ["player_client=android,web"]},
+            "extractor_args": {"youtube": ["player_client=ios,android,web"]},
         }
     else:
         # TikTok / Instagram: ensure video and audio are merged
@@ -272,7 +283,7 @@ def download_video(
         check_opts = {
             "quiet": True,
             "remote_components": ["ejs:github"],
-            "extractor_args": {"youtube": ["player_client=android,web"]},
+            "extractor_args": {"youtube": ["player_client=ios,android,web"]},
         }
         _apply_cookies(check_opts, yt_cookies)
         try:
@@ -390,6 +401,19 @@ def download_video(
             ydl.download([url])
     except DownloadCancelled:
         print("      ⏹️ Titik siaran langsung saat ini tercapai (live edge).", flush=True)
+    except Exception as e:
+        err_str = str(e)
+        if "not a bot" in err_str.lower() or "confirm you" in err_str.lower():
+            print("\n" + "=" * 70, flush=True)
+            print("🚨 YOUTUBE BOT DETECTION (KAGGLE / CLOUD IP)", flush=True)
+            print("=" * 70, flush=True)
+            print("YouTube memblokir request tanpa login dari IP cloud Kaggle.", flush=True)
+            print("Solusi:", flush=True)
+            print("1. Ekspor cookies dari browser laptop Anda (ekstensi 'Get cookies.txt LOCALLY').", flush=True)
+            print("2. Simpan sebagai file 'youtube_cookies.txt' di /kaggle/working/youtube_cookies.txt", flush=True)
+            print("   atau masukkan isi cookies ke Kaggle Secrets dengan label 'YOUTUBE_COOKIES'.", flush=True)
+            print("=" * 70 + "\n", flush=True)
+        raise
 
     # --- Post-download verification and live stream remuxing ---
     if is_live_stream:
