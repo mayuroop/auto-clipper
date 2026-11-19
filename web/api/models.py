@@ -46,6 +46,7 @@ class FontStyle(str, enum.Enum):
     STORYTELLER = "STORYTELLER"
     HORMOZI = "HORMOZI"
     CINEMATIC = "CINEMATIC"
+    HINDI = "HINDI"
 
 
 class FaceDetector(str, enum.Enum):

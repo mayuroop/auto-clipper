@@ -106,7 +106,34 @@ DAFTAR_FONT = {
             "bold": 0,
         },
     },
+    "HINDI": {
+        "utama": {
+            "nama": "Noto Sans Devanagari",
+            "file": "NotoSansDevanagari-Bold.ttf",
+            "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Bold.ttf",
+            "bold": 1,
+        },
+        "khusus": {
+            "nama": "Noto Sans Devanagari",
+            "file": "NotoSansDevanagari-Regular.ttf",
+            "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf",
+            "bold": 0,
+        },
+    },
 }
+
+FALLBACK_FONTS = [
+    {
+        "nama": "Noto Sans Devanagari",
+        "file": "NotoSansDevanagari-Bold.ttf",
+        "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Bold.ttf",
+    },
+    {
+        "nama": "Noto Sans Devanagari Regular",
+        "file": "NotoSansDevanagari-Regular.ttf",
+        "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf",
+    },
+]
 
 # Khusus 9:16 (Vertikal)
 ASS_ALIGN_916 = 2
@@ -406,7 +433,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--font-style",
         default=GAYA_FONT_AKTIF,
-        choices=["DEFAULT", "STORYTELLER", "HORMOZI", "CINEMATIC"],
+        choices=["DEFAULT", "STORYTELLER", "HORMOZI", "CINEMATIC", "HINDI"],
         help="Font style preset",
     )
     p.add_argument(
@@ -864,6 +891,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         no_subs=args.no_subs,
         gaya_font_aktif=args.font_style,
         daftar_font=DAFTAR_FONT,
+        fallback_fonts=FALLBACK_FONTS,
         use_advanced_text=args.advanced_text,
         use_advanced_text_on_hook=args.advanced_text_hook,
         # ASS position values

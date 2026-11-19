@@ -144,52 +144,70 @@ def download_google_font(
     return False
 
 
+FALLBACK_FONTS = [
+    {
+        "nama": "Noto Sans Devanagari",
+        "file": "NotoSansDevanagari-Bold.ttf",
+        "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Bold.ttf",
+    },
+    {
+        "nama": "Noto Sans Devanagari Regular",
+        "file": "NotoSansDevanagari-Regular.ttf",
+        "url": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf",
+    },
+]
+
+
 def register_fonts_for_libass(font_dir):
     """
-    Copy downloaded fonts to the system font directory and refresh the font cache (Linux only).
-    This ensures that FFmpeg/libass can correctly find and use the downloaded fonts for subtitles.
+    Copy downloaded fonts to system font directories and refresh the font cache (Linux only).
+    This ensures that FFmpeg/libass can correctly find and use downloaded typography and multilingual fallbacks.
 
     Args:
         font_dir (str): Directory where the downloaded font files (.ttf, .otf) are located.
 
     Returns:
         None
-
-    Side Effects:
-        Creates `~/.local/share/fonts` if it doesn't exist.
-        Copies font files into the system user font directory.
-        Runs the `fc-cache` shell command on Linux systems.
-
-    Raises:
-        None explicitly. OS-level permission errors during file copying may occur.
     """
     if os.name == "nt":
         # On Windows, libass can use fontsdir directly — skip fc-cache
         return
 
-    user_font_dir = os.path.expanduser("~/.local/share/fonts")
-    os.makedirs(user_font_dir, exist_ok=True)
+    candidate_dirs = [
+        os.path.expanduser("~/.local/share/fonts"),
+        os.path.expanduser("~/.fonts"),
+        "/usr/local/share/fonts/clipping_fonts",
+    ]
 
-    copied = []
-    for fn in os.listdir(font_dir):
-        if fn.lower().endswith((".ttf", ".otf")):
-            src = os.path.join(font_dir, fn)
-            dst = os.path.join(user_font_dir, fn)
-            shutil.copy2(src, dst)
-            copied.append(dst)
+    copied = False
+    for target_dir in candidate_dirs:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            for fn in os.listdir(font_dir):
+                if fn.lower().endswith((".ttf", ".otf")):
+                    src = os.path.join(font_dir, fn)
+                    dst = os.path.join(target_dir, fn)
+                    if not os.path.exists(dst) or os.path.getsize(dst) != os.path.getsize(src):
+                        shutil.copy2(src, dst)
+                        copied = True
+        except Exception:
+            pass
 
-    if copied:
+    try:
         subprocess.run(
             ["fc-cache", "-f", "-v"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
         )
+    except Exception:
+        pass
 
 
 def siapkan_font_tipografi(cfg):
     """
-    Ensure all required typography fonts for the selected style are downloaded and registered.
+    Ensure all required typography fonts for the selected style are downloaded and registered,
+    along with essential multilingual fallback fonts (e.g. Devanagari for Hindi).
 
     Args:
         cfg: Runtime configuration object that contains `daftar_font` (font dictionary), 
@@ -215,6 +233,14 @@ def siapkan_font_tipografi(cfg):
 
     ok_utama = download_google_font(f_utama["url"], f_utama["file"], font_dir)
     ok_khusus = download_google_font(f_khusus["url"], f_khusus["file"], font_dir)
+
+    # Download multilingual fallback fonts (e.g. Hindi / Devanagari) so fontconfig/libass has glyph fallbacks
+    fallback_fonts = getattr(cfg, "fallback_fonts", FALLBACK_FONTS)
+    for fb in fallback_fonts:
+        try:
+            download_google_font(fb["url"], fb["file"], font_dir)
+        except Exception as e:
+            print(f"   ⚠️ Fallback font '{fb.get('file')}' gagal diunduh: {e}")
 
     path_utama = os.path.join(font_dir, f_utama["file"])
     path_khusus = os.path.join(font_dir, f_khusus["file"])
