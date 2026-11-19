@@ -13,6 +13,24 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadCancelled
 from faster_whisper import WhisperModel
 
+# Patch PyAV 18+ compatibility for faster-whisper (metadata_errors was removed in av>=18)
+try:
+    import av
+    _orig_av_open = av.open
+
+    def _patched_av_open(*args, **kwargs):
+        try:
+            return _orig_av_open(*args, **kwargs)
+        except TypeError as err:
+            if "metadata_errors" in str(err) and "metadata_errors" in kwargs:
+                kwargs.pop("metadata_errors", None)
+                return _orig_av_open(*args, **kwargs)
+            raise
+
+    av.open = _patched_av_open
+except ImportError:
+    pass
+
 
 # ==============================================================================
 # TAHAP 1: DOWNLOAD VIDEO

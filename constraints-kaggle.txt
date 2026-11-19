@@ -22,3 +22,6 @@ speechbrain==1.0.3
 torch==2.5.1
 torchaudio==2.5.1
 torchvision==0.20.1
+
+# faster-whisper compatibility (PyAV 18+ removed metadata_errors from av.open)
+av>=11.0.0,<18.0.0
