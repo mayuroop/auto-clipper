@@ -489,6 +489,20 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 elapsed_ms=round((time.monotonic() - clip_started) * 1000, 2),
             )
             render_manifest.append(hasil_render)
+
+            # Progressive clips update: Immediately expose completed clips to the store and UI
+            # so users can preview and download finished clips while the rest are rendering.
+            current_clips = _clips_from_manifest(job_id, render_manifest)
+            store.update_job(job_id, clips=current_clips)
+            store.update_progress(
+                job_id,
+                step="render",
+                step_number=6,
+                total_steps=7,
+                message=f"Klip {clip_num}/{total_clips} selesai ({len(current_clips)} klip siap ditonton).",
+                percent=60.0 + (35.0 * clip_num / total_clips),
+            )
+
             # Keep completed work visible even if cancellation happens next.
             manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
             with open(manifest_path, "w", encoding="utf-8") as f:

@@ -315,22 +315,25 @@ async def job_status_sse(job_id: str):
                 elif isinstance(progress, dict):
                     progress_data = progress
 
+            clips_data = [
+                c.model_dump(mode="json") if isinstance(c, ClipDetail) else c
+                for c in current_job.get("clips", [])
+            ]
+
             event = {
                 "type": "progress",
                 "status": status,
                 "progress": progress_data,
                 "error": current_job.get("error"),
                 "cancel_requested": current_job.get("cancel_requested", False),
+                "clips": clips_data,
             }
 
             # One terminal event includes final results. A terminal progress
             # event first can cause clients to close the stream before clips.
             if status in terminal_states:
                 event["type"] = status
-                event["clips"] = [
-                    c.model_dump(mode="json") if isinstance(c, ClipDetail) else c
-                    for c in current_job.get("clips", [])
-                ]
+                event["clips"] = clips_data
                 yield f"data: {json.dumps(event, default=str)}\n\n"
                 break
 

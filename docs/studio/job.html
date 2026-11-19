@@ -147,9 +147,15 @@
 
                     <!-- Clips Section -->
                     <div id="clips-section" class="hidden mb-8">
-                        <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                            <span data-i18n="job.generated">🎞️ Generated Clips (</span><span id="clips-count">0</span>)
-                        </h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                <span data-i18n="job.generated">🎞️ Generated Clips (</span><span id="clips-count">0</span>)
+                                <span id="clips-in-progress-badge" class="hidden text-xs font-normal text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 ml-2">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                    <span>Rendering in progress — Ready clips are playable & downloadable now!</span>
+                                </span>
+                            </h3>
+                        </div>
                         <div id="clips-grid" class="clip-grid"></div>
                     </div>
 
@@ -255,9 +261,18 @@
 
             // Clips
             const clipsSection = document.getElementById('clips-section');
+            const inProgressBadge = document.getElementById('clips-in-progress-badge');
+
             if (job.clips && job.clips.length > 0) {
                 clipsSection.classList.remove('hidden');
                 document.getElementById('clips-count').textContent = job.clips.length;
+                if (inProgressBadge) {
+                    if (!isTerminal) {
+                        inProgressBadge.classList.remove('hidden');
+                    } else {
+                        inProgressBadge.classList.add('hidden');
+                    }
+                }
 
                 const baseUrl = StudioAPI.getBackendUrl();
                 const signature = JSON.stringify([baseUrl, job.clips]);
@@ -268,7 +283,7 @@
                     const title = clip.title || clip.title_en;
                     return `
                         <div class="clip-card">
-                            ${downloadUrl ? `<video class="clip-video" controls preload="none" src="${downloadUrl}" onerror="this.nextElementSibling.classList.remove('hidden')"></video><p class="hidden p-3 text-xs text-amber-500">${StudioI18n.html('job.previewUnavailable')}</p>` : ''}
+                            ${downloadUrl ? `<video class="clip-video" controls preload="metadata" src="${downloadUrl}" onerror="this.nextElementSibling.classList.remove('hidden')"></video><p class="hidden p-3 text-xs text-amber-500">${StudioI18n.html('job.previewUnavailable')}</p>` : ''}
                             <div class="p-4">
                                 <div class="font-semibold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">${title ? escapeHtml(title) : StudioI18n.html('job.clipTitle', { rank: clip.rank || i + 1 })}</div>
                                 <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
@@ -280,7 +295,7 @@
                                     <a href="${downloadUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i> ${StudioI18n.html('job.openVideo')}
                                     </a>
-                                    <a href="${downloadUrl}" download target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-500">${StudioI18n.html('job.download')}</a>
+                                    <a href="${downloadUrl}" download target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-500 hover:text-brand-600 font-semibold">${StudioI18n.html('job.download')}</a>
                                 ` : ''}
                             </div>
                         </div>
@@ -290,6 +305,7 @@
                 }
             } else {
                 clipsSection.classList.add('hidden');
+                if (inProgressBadge) inProgressBadge.classList.add('hidden');
             }
 
             // Log
@@ -371,6 +387,9 @@
                                 currentJob.progress = event.progress;
                                 currentJob.error = event.error;
                                 currentJob.cancel_requested = event.cancel_requested;
+                                if (event.clips && Array.isArray(event.clips) && event.clips.length > 0) {
+                                    currentJob.clips = event.clips;
+                                }
                                 renderJob(currentJob);
                             }
                         }
